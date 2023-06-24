@@ -27,8 +27,8 @@ int register_iic_bus(struct iic_adapter *iic_adapter)
     }
 
     f_ret = xSemaphoreTake(iic_bus_drv_dev.mutex_lock, portMAX_DELAY);
-    if (LYSI_TRUE != ret) {
-        printf("ERR: get lock timeout\r\n");
+    if (LYSI_TRUE != f_ret) {
+        printf("ERR: get lock timeout --> f_ret\r\n", f_ret);
         return -LYSI_EAGAIN;
     }
 
@@ -48,7 +48,8 @@ int register_iic_bus(struct iic_adapter *iic_adapter)
     }
 
     /* 硬件、体系结构相关 */
-    if (HAL_I2C_Init(iic_adapter->i2c_args) != HAL_OK) {
+    if (HAL_I2C_Init(iic_adapter->i2c_handle) != HAL_OK) {
+        printf("iic register error\r\n");
         Error_Handler();
     }
 
@@ -82,14 +83,14 @@ int unregister_iic_bus(struct iic_adapter *iic_adapter)
     }
 
     /* 硬件、体系结构相关 */
-    if (HAL_I2C_Init(iic_adapter->i2c_args) != HAL_OK) {
+    if (HAL_I2C_Init(iic_adapter->i2c_handle) != HAL_OK) {
         Error_Handler();
     }
 
     return ret;
 }
 
-int iic_bus_drv_init()
+int iic_bus_drv_init(void)
 {
     INIT_LIST_HEAD(&iic_bus_head);
     INIT_LIST_HEAD(&iic_dev_head);
@@ -98,13 +99,15 @@ int iic_bus_drv_init()
     if (!iic_bus_drv_dev.mutex_lock) {
         return -LYSI_EBUSY;
     }
+
+    return LYSI_OK;
 }
 
 int register_iic_dev(struct iic_dev *iic_dev, struct iic_adapter *iic_adapter)
 {
     int ret = LYSI_OK;
     int f_ret = LYSI_TRUE;
-    unsigned int dev_no = 0;
+    int dev_no = 0;
 
     f_ret = xSemaphoreTake(iic_bus_drv_dev.mutex_lock, portMAX_DELAY);
     if (LYSI_TRUE != ret) {
@@ -126,6 +129,8 @@ int register_iic_dev(struct iic_dev *iic_dev, struct iic_adapter *iic_adapter)
     if (LYSI_TRUE != f_ret) {
         ret = LYSI_ERR;
     }
+
+    return ret;
 }
 
 int unregister_iic_dev(struct iic_dev *iic_dev, struct iic_adapter *iic_adapter)
@@ -148,11 +153,12 @@ int unregister_iic_dev(struct iic_dev *iic_dev, struct iic_adapter *iic_adapter)
     if (LYSI_TRUE != f_ret) {
         ret = LYSI_ERR;
     }
+
+    return ret;
 }
 
 struct iic_adapter * get_iic_adpater(unsigned int bus_id)
 {
-    int ret = LYSI_OK;
     struct iic_adapter *entry;
 
     if (bus_id_valid(bus_id)) {

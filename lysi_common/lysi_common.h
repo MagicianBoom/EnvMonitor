@@ -1,8 +1,6 @@
 #ifndef __LYSI_COMMON_H
 #define __LYSI_COMMON_H
 
-#include "lysi_list.h"
-
 /**
  * @brief 体系结构相关的定义
  *
@@ -85,13 +83,13 @@
 #define LYSI_OK                                 0
 #define LYSI_ERR                                1
 
-#define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
+// #define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
 
 #define container_of(ptr, type, member) ({          \
 	const typeof(((type *)0)->member)*__mptr = (ptr);    \
 		     (type *)((char *)__mptr - offsetof(type, member)); })
 
-#define NULL                                            ((void *)0)
+// #define NULL                                            ((void *)0)
 
 /**
  * @brief 体系结构不同导致的适配差异定义

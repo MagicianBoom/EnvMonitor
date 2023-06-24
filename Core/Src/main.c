@@ -21,23 +21,21 @@
 #include "cmsis_os.h"
 #include "task.h"
 #include "stdio.h"
-
-/* Private includes ----------------------------------------------------------*/
-
-/* Private typedef -----------------------------------------------------------*/
-
-/* Private define ------------------------------------------------------------*/
-
-/* Private macro -------------------------------------------------------------*/
+#include "lysi_common.h"
+#include "iic_core.h"
 
 /* Private variables ---------------------------------------------------------*/
-I2C_HandleTypeDef hi2c1;
-I2C_HandleTypeDef hi2c2;
+static I2C_HandleTypeDef hi2c1;
+static I2C_HandleTypeDef hi2c2;
 
-SPI_HandleTypeDef hspi1;
+static SPI_HandleTypeDef hspi1;
 
-UART_HandleTypeDef huart1;
-UART_HandleTypeDef huart2;
+static UART_HandleTypeDef huart1;
+static UART_HandleTypeDef huart2;
+
+/* Public variables ---------------------------------------------------------*/
+struct iic_adapter iic_adapter1;
+struct iic_adapter iic_adapter2;
 
 /* Definitions for defaultTask */
 osThreadId_t defaultTaskHandle;
@@ -56,6 +54,7 @@ static void MX_SPI1_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_USART2_UART_Init(void);
 void StartDefaultTask(void* argument);
+static int iic_init(void);
 
 void led_task(void* pvParameters)
 {
@@ -64,6 +63,42 @@ void led_task(void* pvParameters)
         vTaskDelay(500);
         HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
         vTaskDelay(500);
+    }
+}
+
+void temp_humi_task(void* pvParameters)
+{
+    int ret = 0;
+    uint8_t data_w[] = {0x2C, 0x06};
+    uint8_t data_r[6] = {0};
+    uint32_t temp = 0, humi = 0;
+    float temp_f = 0, humi_f = 0;
+    int i = 0;
+
+    printf("temp_humi_task has been scheduled\r\n", ret);
+
+    while (1) {
+        ret = HAL_I2C_Master_Transmit(iic_adapter1.i2c_handle, 0x44<<1, data_w, 2, 5000);
+        if (ret != HAL_OK) {
+            printf("IIC failed --> %d\r\n", ret);
+        }
+
+        ret = HAL_I2C_Master_Receive(iic_adapter1.i2c_handle, 0x44<<1, data_r, 6, 500);
+        if (ret != HAL_OK) {
+            printf("IIC failed --> %d\r\n", ret);
+        }
+
+        temp = ((uint16_t)data_r[0] << 8) | (uint16_t)data_r[1];
+        temp_f = -45 + 175*((float)temp/65535);
+        humi = ((uint16_t)data_r[3] << 8) | (uint16_t)data_r[4];
+        humi_f = 100*(((float)humi/65535));
+        printf("temp: %.1f, humi %.1f\r\n", temp_f, humi_f);
+
+        // for (i = 0; i < 6; i++) {
+        //     printf("data_r[%d]: %u\r\n", i, data_r[i]);
+        // }
+
+        vTaskDelay(1000);
     }
 }
 
@@ -80,12 +115,16 @@ int main(void)
     /* Configure the system clock */
     SystemClock_Config();
 
+    /* bus driver register */
+    iic_bus_drv_init();
+
     /* Initialize all configured peripherals */
-    MX_GPIO_Init();
-    MX_I2C1_Init();
-    MX_I2C2_Init();
-    MX_SPI1_Init();
     MX_USART1_UART_Init();
+    MX_GPIO_Init();
+    iic_init();
+    // MX_I2C1_Init();
+    // MX_I2C2_Init();
+    MX_SPI1_Init();
     MX_USART2_UART_Init();
 
     /* Init scheduler */
@@ -96,6 +135,7 @@ int main(void)
     defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
 
     xTaskCreate(led_task, "led_task", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, NULL);
+    xTaskCreate(temp_humi_task, "temp_humi_task", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, NULL);
 
     /* Start scheduler */
     osKernelStart();
@@ -149,6 +189,49 @@ void SystemClock_Config(void)
     {
         Error_Handler();
     }
+}
+
+static int iic_init(void)
+{
+    int ret = LYSI_OK;
+
+    /* IIC1 init */
+    hi2c1.Instance = I2C1;
+    hi2c1.Init.ClockSpeed = 100000;
+    hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+    hi2c1.Init.OwnAddress1 = 0;
+    hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+    hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+    hi2c1.Init.OwnAddress2 = 0;
+    hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+    hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+    iic_adapter1.i2c_handle = &hi2c1;
+    ret = register_iic_bus(&iic_adapter1);
+    if (ret) {
+        goto failed;
+    }
+
+    /* IIC2 init */
+    hi2c2.Instance = I2C2;
+    hi2c2.Init.ClockSpeed = 100000;
+    hi2c2.Init.DutyCycle = I2C_DUTYCYCLE_2;
+    hi2c2.Init.OwnAddress1 = 0;
+    hi2c2.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+    hi2c2.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+    hi2c2.Init.OwnAddress2 = 0;
+    hi2c2.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+    hi2c2.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+    iic_adapter2.i2c_handle = &hi2c2;
+    ret = register_iic_bus(&iic_adapter2);
+    if (ret) {
+        goto failed;
+    }
+
+    return ret;
+
+failed:
+    printf("ERR: iic adapter init failed\r\n");
+    return ret;
 }
 
 /**

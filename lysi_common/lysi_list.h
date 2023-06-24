@@ -42,12 +42,12 @@ static inline unsigned short __list_add_valid(struct list_head* new,
     struct list_head* prev,
     struct list_head* next)
 {
-    return 1;
+    return LYSI_TRUE;
 }
 
 static inline unsigned short __list_del_entry_valid(struct list_head* entry)
 {
-    return 1;
+    return LYSI_TRUE;
 }
 
 /*
