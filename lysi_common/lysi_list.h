@@ -11,19 +11,10 @@
  * using the generic single-entry routines.
  */
 
-#define NULL                                            ((void *)0)
+#include "lysi_common.h"
 
 #define LIST_POISON1                                    NULL
 #define LIST_POISON2                                    NULL
-
-#define LIST_TRUE                                       1
-#define LIST_FALSE                                      0
-
-#define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
-
-#define container_of(ptr, type, member) ({          \
-	const typeof(((type *)0)->member)*__mptr = (ptr);    \
-		     (type *)((char *)__mptr - offsetof(type, member)); })
 
 struct list_head {
     struct list_head* next, * prev;
@@ -51,12 +42,12 @@ static inline unsigned short __list_add_valid(struct list_head* new,
     struct list_head* prev,
     struct list_head* next)
 {
-    return LIST_TRUE;
+    return 1;
 }
 
 static inline unsigned short __list_del_entry_valid(struct list_head* entry)
 {
-    return LIST_TRUE;
+    return 1;
 }
 
 /*

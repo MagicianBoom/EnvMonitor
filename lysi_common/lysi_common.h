@@ -56,10 +56,24 @@
 #define SPI_BUS_TYPE                            2
 #define USART_BUS_TYPE                          3
 
-#define TYPE_OFF_MASK                           (0xFFFFFFFF << 16)
-#define ID_OFF_MASK                             (0xFFFFFFFF << 0)
+/* 以下三个值均不得超过64 */
+#define MAX_BUS_TYPE_NUMS                       32
+#define MAX_BUS_NUMS                            32
+#define MAX_BUS_DEV_NUMS                        64
 
-#define START_ID_NO                             1
+#define BITMAP_TYPE_BUS_TYPE                    1
+#define BITMAP_TYPE_BUS_ID                      2
+#define BITMAP_TYPE_BUS_DEV_ID                  3
+
+#define BUS_TYPE_START_BIT                      24
+#define BUS_ID_START_BIT                        16
+#define BUS_DEV_ID_START_BIT                    0
+
+#define BUS_TYPE_OFF_MASK                       (0xFF << BUS_TYPE_START_BIT)
+#define BUS_ID_OFF_MASK                         (0xFF << BUS_ID_START_BIT)
+#define BUS_DEV_ID_OFF_MASK                     (0xFFFF << BUS_DEV_ID_START_BIT)
+
+#define START_ID_NO                             0
 
 /**
  * @brief 通用定义
@@ -71,6 +85,14 @@
 #define LYSI_OK                                 0
 #define LYSI_ERR                                1
 
+#define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
+
+#define container_of(ptr, type, member) ({          \
+	const typeof(((type *)0)->member)*__mptr = (ptr);    \
+		     (type *)((char *)__mptr - offsetof(type, member)); })
+
+#define NULL                                            ((void *)0)
+
 /**
  * @brief 体系结构不同导致的适配差异定义
  *
@@ -81,6 +103,7 @@
     #define ARCH_BUS_WIDTH                      unsigned long long
 #endif
 
-
-
+int find_first_zero_bit(unsigned long long bitmap, unsigned int max_bits);
+void set_bitmap(unsigned long long *bitmap, unsigned int bit_position);
+void clear_bitmap(unsigned long long *bitmap, unsigned int bit_position);
 #endif

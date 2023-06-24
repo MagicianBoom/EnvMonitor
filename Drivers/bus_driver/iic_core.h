@@ -6,22 +6,29 @@
 #include "queue.h"
 #include "semphr.h"
 #include "lysi_common.h"
+#include "stm32f1xx_hal_def.h"
 
 struct iic_bus_drv_dev {
+    unsigned long long bus_bitmap;
     SemaphoreHandle_t mutex_lock;
 };
 
-struct iic_bus {
-    unsigned int id;
-    unsigned int rate;
-    unsigned int scl_port;
-    unsigned int scl_pin;
-    unsigned int sda_port;
-    unsigned int sda_pin;
-    struct list_head bus_list;
+struct iic_adapter {
+    unsigned int bus_id;
+    unsigned long long dev_bitmap;
+    I2C_HandleTypeDef *i2c_args;
 
-    int (*iic_write)(ARCH_BUS_WIDTH addr, unsigned int size, unsigned int *data);
-    int (*iic_read)(ARCH_BUS_WIDTH addr, unsigned int size, unsigned int *data);
+    struct list_head bus_list;
 };
+
+struct iic_dev {
+    unsigned int dev_id;
+    unsigned short dev_addr;
+    struct iic_adapter *iic_adapter;
+
+    struct list_head dev_list;
+}
+
+int register_iic_bus(struct iic_adapter *iic_adapter);
 
 #endif
