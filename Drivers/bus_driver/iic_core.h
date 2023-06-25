@@ -33,5 +33,8 @@ struct iic_dev {
 
 int iic_bus_drv_init(void);
 int register_iic_bus(struct iic_adapter *iic_adapter);
+int unregister_iic_bus(struct iic_adapter *iic_adapter);
+int register_iic_dev(struct iic_dev *iic_dev);
+int unregister_iic_dev(struct iic_dev *iic_dev);
 
 #endif
