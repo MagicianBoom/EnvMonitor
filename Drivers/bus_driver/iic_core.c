@@ -103,7 +103,7 @@ int iic_bus_drv_init(void)
     return LYSI_OK;
 }
 
-int register_iic_dev(struct iic_dev *iic_dev, struct iic_adapter *iic_adapter)
+int register_iic_dev(struct iic_dev *iic_dev)
 {
     int ret = LYSI_OK;
     int f_ret = LYSI_TRUE;
@@ -120,8 +120,8 @@ int register_iic_dev(struct iic_dev *iic_dev, struct iic_adapter *iic_adapter)
         printf("ERR: Dev is full\r\n");
         return dev_no;
     }
-    iic_dev->dev_id = iic_adapter->bus_id | (dev_no << BUS_DEV_ID_START_BIT);
-    set_bitmap(&iic_adapter->dev_bitmap, dev_no);
+    iic_dev->dev_id = iic_dev->iic_adapter->bus_id | (dev_no << BUS_DEV_ID_START_BIT);
+    set_bitmap(&iic_dev->iic_adapter->dev_bitmap, dev_no);
 
     list_add(&iic_dev->dev_list, &iic_dev_head);
 
@@ -133,7 +133,7 @@ int register_iic_dev(struct iic_dev *iic_dev, struct iic_adapter *iic_adapter)
     return ret;
 }
 
-int unregister_iic_dev(struct iic_dev *iic_dev, struct iic_adapter *iic_adapter)
+int unregister_iic_dev(struct iic_dev *iic_dev)
 {
     int ret = LYSI_OK;
     int f_ret = LYSI_TRUE;
@@ -146,7 +146,7 @@ int unregister_iic_dev(struct iic_dev *iic_dev, struct iic_adapter *iic_adapter)
     }
 
     dev_no = (iic_dev->dev_id & BUS_DEV_ID_OFF_MASK) >> BUS_DEV_ID_START_BIT;
-    clear_bitmap(&iic_adapter->dev_bitmap, dev_no);
+    clear_bitmap(&iic_dev->iic_adapter->dev_bitmap, dev_no);
     list_del(&iic_dev->dev_list);
 
     f_ret = xSemaphoreGive(iic_bus_drv_dev.mutex_lock);

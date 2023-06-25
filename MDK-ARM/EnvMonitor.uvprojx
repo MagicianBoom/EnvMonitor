@@ -593,6 +593,13 @@
         </Group>
         <Group>
           <GroupName>Drivers/dev_driver</GroupName>
+          <Files>
+            <File>
+              <FileName>sht3x.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drivers\dev_driver\sht3x.c</FilePath>
+            </File>
+          </Files>
         </Group>
         <Group>
           <GroupName>::CMSIS</GroupName>
