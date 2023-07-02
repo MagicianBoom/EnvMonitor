@@ -109,11 +109,11 @@ int register_iic_dev(struct iic_dev* iic_dev)
     int f_ret = LYSI_TRUE;
     int dev_no = 0;
 
-    // f_ret = xSemaphoreTake(iic_bus_drv_dev.mutex_lock, portMAX_DELAY);
-    // if (LYSI_TRUE != ret) {
-    //     printf("ERR: get lock timeout\r\n");
-    //     return -LYSI_EAGAIN;
-    // }
+    f_ret = xSemaphoreTake(iic_bus_drv_dev.mutex_lock, portMAX_DELAY);
+    if (LYSI_TRUE != ret) {
+        printf("ERR: get lock timeout\r\n");
+        return -LYSI_EAGAIN;
+    }
 
     dev_no = find_first_zero_bit(iic_dev->iic_adapter->dev_bitmap, MAX_BUS_DEV_NUMS);
     if (dev_no < 0) {
@@ -125,10 +125,10 @@ int register_iic_dev(struct iic_dev* iic_dev)
 
     list_add(&iic_dev->dev_list, &iic_dev_head);
 
-    // f_ret = xSemaphoreGive(iic_bus_drv_dev.mutex_lock);
-    // if (LYSI_TRUE != f_ret) {
-    //     ret = LYSI_ERR;
-    // }
+    f_ret = xSemaphoreGive(iic_bus_drv_dev.mutex_lock);
+    if (LYSI_TRUE != f_ret) {
+        ret = LYSI_ERR;
+    }
 
     return ret;
 }

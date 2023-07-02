@@ -1,23 +1,3 @@
-/* USER CODE BEGIN Header */
-/**
-  ******************************************************************************
-  * @file           : main.h
-  * @brief          : Header for main.c file.
-  *                   This file contains the common defines of the application.
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2023 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
-/* USER CODE END Header */
-
 /* Define to prevent recursive inclusion -------------------------------------*/
 #ifndef __MAIN_H
 #define __MAIN_H
@@ -26,47 +6,47 @@
 extern "C" {
 #endif
 
-/* Includes ------------------------------------------------------------------*/
 #include "stm32f1xx_hal.h"
+#include "cmsis_os.h"
+#include "task.h"
+#include "stdio.h"
+#include "iic_core.h"
+#include "sht3x.h"
+#include "lysi_common.h"
+#include "lysi_list.h"
 
-/* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */
-
-/* USER CODE END Includes */
-
-/* Exported types ------------------------------------------------------------*/
-/* USER CODE BEGIN ET */
-
-/* USER CODE END ET */
-
-/* Exported constants --------------------------------------------------------*/
-/* USER CODE BEGIN EC */
-
-/* USER CODE END EC */
-
-/* Exported macro ------------------------------------------------------------*/
-/* USER CODE BEGIN EM */
-
-/* USER CODE END EM */
-
-/* Exported functions prototypes ---------------------------------------------*/
 void Error_Handler(void);
 
-/* USER CODE BEGIN EFP */
-
-/* USER CODE END EFP */
-
 /* Private defines -----------------------------------------------------------*/
-#define LED_Pin GPIO_PIN_13
-#define LED_GPIO_Port GPIOC
-#define HUMAN_SENSOR_Pin GPIO_PIN_12
-#define HUMAN_SENSOR_GPIO_Port GPIOB
-#define KEY_Pin GPIO_PIN_14
-#define KEY_GPIO_Port GPIOB
+#define LED_Pin                                                     GPIO_PIN_13
+#define LED_GPIO_Port                                               GPIOC
+#define HUMAN_SENSOR_Pin                                            GPIO_PIN_12
+#define HUMAN_SENSOR_GPIO_Port                                      GPIOB
+#define KEY_Pin                                                     GPIO_PIN_14
+#define KEY_GPIO_Port                                               GPIOB
 
-/* USER CODE BEGIN Private defines */
+#define TASK_STATUS_MASK                                            0xF
+#define TASK_ACTIVE_FLAG_BIT                                        4
+#define TASK_SUSPEND_FLAG_BIT                                       5
+#define TASK_DELETE_FLAG_BIT                                        6
 
-/* USER CODE END Private defines */
+typedef enum {
+    TASK_ACTIVE = 0,
+    TASK_SUSPEND,
+    TASK_DELETE,
+    TASK_STATUS_NUMS,
+};
+
+struct task_info {
+    unsigned char status;
+    unsigned char task_priority;
+    unsigned short stack_size;
+    void *task_args;
+    char *task_name;
+    void (*task_func)(void* pvParameters);
+    TaskHandle_t* task_handle;
+    struct list_head task_list;
+};
 
 #ifdef __cplusplus
 }

@@ -18,12 +18,6 @@
   /* USER CODE END Header */
   /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "cmsis_os.h"
-#include "task.h"
-#include "stdio.h"
-#include "lysi_common.h"
-#include "iic_core.h"
-#include "sht3x.h"
 
 /* Private variables ---------------------------------------------------------*/
 static I2C_HandleTypeDef hi2c1;
@@ -61,7 +55,17 @@ void StartDefaultTask(void* argument);
 static int iic_init(void);
 void sht30_init(void);
 
-void led_task(void* pvParameters)
+/* task */
+static void led_task(void* pvParameters);
+static void temp_humi_task(void* pvParameters);
+
+static LIST_HEAD(task_list);
+struct task_info task_info[] = {
+    {TASK_ACTIVE | (1 << TASK_ACTIVE_FLAG_BIT), tskIDLE_PRIORITY, configMINIMAL_STACK_SIZE, NULL, "led_task", led_task, NULL, NULL},
+    {TASK_ACTIVE | (1 << TASK_ACTIVE_FLAG_BIT), tskIDLE_PRIORITY, configMINIMAL_STACK_SIZE, NULL, "temp_humi_task", temp_humi_task, NULL, NULL},
+};
+
+static void led_task(void* pvParameters)
 {
     while (1) {
         HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
@@ -71,38 +75,73 @@ void led_task(void* pvParameters)
     }
 }
 
-void temp_humi_task(void* pvParameters)
+static void temp_humi_task(void* pvParameters)
 {
     int ret = 0;
-    uint8_t data_w[] = {0x2C, 0x06};
-    uint8_t data_r[6] = {0};
-    uint32_t temp = 0, humi = 0;
-    float temp_f = 0, humi_f = 0;
-    int i = 0;
 
     printf("temp_humi_task has been scheduled\r\n", ret);
 
     while (1) {
-        // ret = HAL_I2C_Master_Transmit(iic_adapter1.i2c_handle, 0x44<<1, data_w, 2, 5000);
-        // if (ret != HAL_OK) {
-        //     printf("IIC failed --> %d\r\n", ret);
-        // }
-
-        // ret = HAL_I2C_Master_Receive(iic_adapter1.i2c_handle, 0x44<<1, data_r, 6, 5000);
-        // if (ret != HAL_OK) {
-        //     printf("IIC failed --> %d\r\n", ret);
-        // }
-
-        // temp = ((uint16_t)data_r[0] << 8) | (uint16_t)data_r[1];
-        // temp_f = -45 + 175*((float)temp/65535);
-        // humi = ((uint16_t)data_r[3] << 8) | (uint16_t)data_r[4];
-        // humi_f = 100*(((float)humi/65535));
-        // printf("temp: %.1f, humi %.1f\r\n", temp_f, humi_f);
-
         get_temp_and_humi(&sht30_dev);
         printf("temp: %.1f, humi %.1f\r\n", sht30_dev.now_temp, sht30_dev.now_humi);
 
         vTaskDelay(1000);
+    }
+}
+
+void task_manager(void* pvParameters)
+{
+    struct task_info* entry;
+    int i = 0;
+    unsigned char task_nums = sizeof(task_info) / sizeof(struct task_info);
+
+    for (i = 0; i < task_nums; i++) {
+        task_info[i].task_handle = xTaskCreate(task_info[i].task_func, task_info[i].task_name, task_info[i].stack_size,
+                    task_info[i].task_args, task_info[i].task_priority, task_info[i].task_handle);
+    }
+
+    while (1) {
+        list_for_each_entry(entry, &task_list, task_list) {
+            switch (entry->status & 0xF) {
+                case TASK_ACTIVE:
+                    if ((1 << TASK_ACTIVE_FLAG_BIT) & entry->status) {
+
+                    } else if ((1 << TASK_SUSPEND_FLAG_BIT) & entry->status) {
+                        vTaskResume(entry->task_handle);
+                        entry->status &= 0xF;
+                        entry->status |= 1 << TASK_ACTIVE_FLAG_BIT;
+                    } else {
+                        entry->task_handle = xTaskCreate(entry->task_func, entry->task_name, entry->stack_size,
+                                    entry->task_args, entry->task_priority, entry->task_handle);
+                        entry->status &= 0xF;
+                        entry->status |= 1 << TASK_ACTIVE_FLAG_BIT;
+                    }
+                    break;
+                case TASK_SUSPEND:
+                    if ((1 << TASK_ACTIVE_FLAG_BIT) & entry->status) {
+                        vTaskSuspend(entry->task_handle);
+                        entry->status &= 0xF;
+                        entry->status |= 1 << TASK_SUSPEND_FLAG_BIT;
+                    } else if ((1 << TASK_SUSPEND_FLAG_BIT) & entry->status) {
+
+                    } else {
+                        printf("[ERROR] %s task schedual error [%d -> %d]\r\n", entry->task_name, TASK_DELETE_FLAG_BIT, TASK_SUSPEND_FLAG_BIT);
+                    }
+                    break;
+                case TASK_DELETE:
+                    if (((1 << TASK_ACTIVE_FLAG_BIT) & entry->status) ||
+                        ((1 << TASK_SUSPEND_FLAG_BIT) & entry->status)) {
+                        vTaskDelete(entry->task_handle);
+                        entry->status &= 0xF;
+                        entry->status |= 1 << TASK_DELETE_FLAG_BIT;
+                    } else {
+
+                    }
+                    break;
+                default:
+                    printf("[ERROR] %s task is a unknow status [0x%X]\r\n", entry->task_name, entry->status & 0xF);
+            }
+        }
     }
 }
 
@@ -132,6 +171,9 @@ int main(void)
     /* dev init */
     sht30_init();
 
+    /* task init */
+    INIT_LIST_HEAD(&task_list);
+
     /* Init scheduler */
     osKernelInitialize();
 
@@ -139,8 +181,10 @@ int main(void)
     /* creation of defaultTask */
     defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
 
-    xTaskCreate(led_task, "led_task", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, NULL);
-    xTaskCreate(temp_humi_task, "temp_humi_task", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, NULL);
+    xTaskCreate(task_manager, "task_manager", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, NULL);
+
+    // xTaskCreate(led_task, "led_task", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, NULL);
+    // xTaskCreate(temp_humi_task, "temp_humi_task", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, NULL);
 
     /* Start scheduler */
     osKernelStart();
