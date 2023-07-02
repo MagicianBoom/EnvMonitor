@@ -15,4 +15,7 @@ struct sht3x_dev {
     struct iic_dev iic_dev;
 };
 
+int sht3x_init(struct sht3x_dev* sht3x_dev, struct iic_adapter* iic_adapter, unsigned int dev_addr);
+int get_temp_and_humi(struct sht3x_dev *sht3x_dev);
+
 #endif

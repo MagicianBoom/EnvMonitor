@@ -6,8 +6,8 @@ static LIST_HEAD(iic_dev_head);
 
 int bus_id_valid(unsigned int bus_id)
 {
-    if ( (((bus_id & BUS_TYPE_OFF_MASK) >> BUS_TYPE_START_BIT) != IIC_BUS_TYPE) ||
-         ((bus_id & BUS_DEV_ID_OFF_MASK) != 0 ) ) {
+    if ((((bus_id & BUS_TYPE_OFF_MASK) >> BUS_TYPE_START_BIT) != IIC_BUS_TYPE) ||
+        ((bus_id & BUS_DEV_ID_OFF_MASK) != 0)) {
         printf("ERR: iic bus_id invalid\r\n");
         return -LYSI_EINVAL;
     }
@@ -15,7 +15,7 @@ int bus_id_valid(unsigned int bus_id)
     return LYSI_OK;
 }
 
-int register_iic_bus(struct iic_adapter *iic_adapter)
+int register_iic_bus(struct iic_adapter* iic_adapter)
 {
     int ret = LYSI_OK;
     int f_ret = LYSI_TRUE;
@@ -38,7 +38,7 @@ int register_iic_bus(struct iic_adapter *iic_adapter)
         return bus_no;
     }
     iic_adapter->bus_id = (IIC_BUS_TYPE << BUS_TYPE_START_BIT) |
-                      (bus_no << BUS_ID_START_BIT);
+        (bus_no << BUS_ID_START_BIT);
     set_bitmap(&iic_bus_drv_dev.bus_bitmap, bus_no);
 
     list_add(&iic_adapter->bus_list, &iic_bus_head);
@@ -56,7 +56,7 @@ int register_iic_bus(struct iic_adapter *iic_adapter)
     return ret;
 }
 
-int unregister_iic_bus(struct iic_adapter *iic_adapter)
+int unregister_iic_bus(struct iic_adapter* iic_adapter)
 {
     int ret = LYSI_OK;
     int f_ret = LYSI_TRUE;
@@ -103,19 +103,19 @@ int iic_bus_drv_init(void)
     return LYSI_OK;
 }
 
-int register_iic_dev(struct iic_dev *iic_dev)
+int register_iic_dev(struct iic_dev* iic_dev)
 {
     int ret = LYSI_OK;
     int f_ret = LYSI_TRUE;
     int dev_no = 0;
 
-    f_ret = xSemaphoreTake(iic_bus_drv_dev.mutex_lock, portMAX_DELAY);
-    if (LYSI_TRUE != ret) {
-        printf("ERR: get lock timeout\r\n");
-        return -LYSI_EAGAIN;
-    }
+    // f_ret = xSemaphoreTake(iic_bus_drv_dev.mutex_lock, portMAX_DELAY);
+    // if (LYSI_TRUE != ret) {
+    //     printf("ERR: get lock timeout\r\n");
+    //     return -LYSI_EAGAIN;
+    // }
 
-    dev_no = find_first_zero_bit(iic_bus_drv_dev.bus_bitmap, MAX_BUS_NUMS);
+    dev_no = find_first_zero_bit(iic_dev->iic_adapter->dev_bitmap, MAX_BUS_DEV_NUMS);
     if (dev_no < 0) {
         printf("ERR: Dev is full\r\n");
         return dev_no;
@@ -125,15 +125,15 @@ int register_iic_dev(struct iic_dev *iic_dev)
 
     list_add(&iic_dev->dev_list, &iic_dev_head);
 
-    f_ret = xSemaphoreGive(iic_bus_drv_dev.mutex_lock);
-    if (LYSI_TRUE != f_ret) {
-        ret = LYSI_ERR;
-    }
+    // f_ret = xSemaphoreGive(iic_bus_drv_dev.mutex_lock);
+    // if (LYSI_TRUE != f_ret) {
+    //     ret = LYSI_ERR;
+    // }
 
     return ret;
 }
 
-int unregister_iic_dev(struct iic_dev *iic_dev)
+int unregister_iic_dev(struct iic_dev* iic_dev)
 {
     int ret = LYSI_OK;
     int f_ret = LYSI_TRUE;
@@ -157,9 +157,9 @@ int unregister_iic_dev(struct iic_dev *iic_dev)
     return ret;
 }
 
-struct iic_adapter * get_iic_adpater(unsigned int bus_id)
+struct iic_adapter* get_iic_adpater(unsigned int bus_id)
 {
-    struct iic_adapter *entry;
+    struct iic_adapter* entry;
 
     if (bus_id_valid(bus_id)) {
         return NULL;

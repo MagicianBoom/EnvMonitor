@@ -23,6 +23,7 @@
 #include "stdio.h"
 #include "lysi_common.h"
 #include "iic_core.h"
+#include "sht3x.h"
 
 /* Private variables ---------------------------------------------------------*/
 static I2C_HandleTypeDef hi2c1;
@@ -36,6 +37,9 @@ static UART_HandleTypeDef huart2;
 /* Public variables ---------------------------------------------------------*/
 struct iic_adapter iic_adapter1;
 struct iic_adapter iic_adapter2;
+
+/* dev */
+static struct sht3x_dev sht30_dev;
 
 /* Definitions for defaultTask */
 osThreadId_t defaultTaskHandle;
@@ -55,6 +59,7 @@ static void MX_USART1_UART_Init(void);
 static void MX_USART2_UART_Init(void);
 void StartDefaultTask(void* argument);
 static int iic_init(void);
+void sht30_init(void);
 
 void led_task(void* pvParameters)
 {
@@ -78,25 +83,24 @@ void temp_humi_task(void* pvParameters)
     printf("temp_humi_task has been scheduled\r\n", ret);
 
     while (1) {
-        ret = HAL_I2C_Master_Transmit(iic_adapter1.i2c_handle, 0x44<<1, data_w, 2, 5000);
-        if (ret != HAL_OK) {
-            printf("IIC failed --> %d\r\n", ret);
-        }
-
-        ret = HAL_I2C_Master_Receive(iic_adapter1.i2c_handle, 0x44<<1, data_r, 6, 500);
-        if (ret != HAL_OK) {
-            printf("IIC failed --> %d\r\n", ret);
-        }
-
-        temp = ((uint16_t)data_r[0] << 8) | (uint16_t)data_r[1];
-        temp_f = -45 + 175*((float)temp/65535);
-        humi = ((uint16_t)data_r[3] << 8) | (uint16_t)data_r[4];
-        humi_f = 100*(((float)humi/65535));
-        printf("temp: %.1f, humi %.1f\r\n", temp_f, humi_f);
-
-        // for (i = 0; i < 6; i++) {
-        //     printf("data_r[%d]: %u\r\n", i, data_r[i]);
+        // ret = HAL_I2C_Master_Transmit(iic_adapter1.i2c_handle, 0x44<<1, data_w, 2, 5000);
+        // if (ret != HAL_OK) {
+        //     printf("IIC failed --> %d\r\n", ret);
         // }
+
+        // ret = HAL_I2C_Master_Receive(iic_adapter1.i2c_handle, 0x44<<1, data_r, 6, 5000);
+        // if (ret != HAL_OK) {
+        //     printf("IIC failed --> %d\r\n", ret);
+        // }
+
+        // temp = ((uint16_t)data_r[0] << 8) | (uint16_t)data_r[1];
+        // temp_f = -45 + 175*((float)temp/65535);
+        // humi = ((uint16_t)data_r[3] << 8) | (uint16_t)data_r[4];
+        // humi_f = 100*(((float)humi/65535));
+        // printf("temp: %.1f, humi %.1f\r\n", temp_f, humi_f);
+
+        get_temp_and_humi(&sht30_dev);
+        printf("temp: %.1f, humi %.1f\r\n", sht30_dev.now_temp, sht30_dev.now_humi);
 
         vTaskDelay(1000);
     }
@@ -122,10 +126,11 @@ int main(void)
     MX_USART1_UART_Init();
     MX_GPIO_Init();
     iic_init();
-    // MX_I2C1_Init();
-    // MX_I2C2_Init();
     MX_SPI1_Init();
     MX_USART2_UART_Init();
+
+    /* dev init */
+    sht30_init();
 
     /* Init scheduler */
     osKernelInitialize();
@@ -150,6 +155,11 @@ int fputc(int ch, FILE* f)
 {
     HAL_UART_Transmit(&huart1, (uint8_t*)&ch, 1, 0xFFFF);
     return ch;
+}
+
+void sht30_init(void)
+{
+    sht3x_init(&sht30_dev, &iic_adapter1, SHT30_DEV_ADDR);
 }
 
 /**
